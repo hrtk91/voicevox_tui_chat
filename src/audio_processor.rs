@@ -15,9 +15,9 @@ pub enum Speakers {
     Zundamon = 3,
 }
 
-impl Into<u32> for Speakers {
-    fn into(self) -> u32 {
-        self as u32
+impl From<Speakers> for u32 {
+    fn from(val: Speakers) -> Self {
+        val as u32
     }
 }
 
@@ -25,7 +25,7 @@ pub async fn to_audio(client: &Client, input: &str, speaker: Speakers) -> Result
     let speaker: u32 = speaker.into();
     let query = AudioQuery {
         text: input.to_string(),
-        speaker: speaker.into(),
+        speaker,
     };
 
     let origin = env::var("VOICEVOX_ENGINE_URL").unwrap_or("http://localhost:50021".to_string());

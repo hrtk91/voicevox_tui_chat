@@ -5,6 +5,12 @@ pub struct Sound {
   sink: rodio::Sink,
 }
 
+impl Default for Sound {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Sound {
   pub fn new() -> Self {
     let (_stream, stream_handle) = rodio::OutputStream::try_default()

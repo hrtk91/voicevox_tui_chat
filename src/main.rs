@@ -88,7 +88,7 @@ async fn main() {
         };
         // AIからの応答を取得して表示
         if let Some(reply) = json["choices"][0]["message"]["content"].as_str() {
-            print!("{}", format!("AI >").green().bold());
+            print!("{}", "AI >".to_string().green().bold());
             println!("{}", reply);
 
             // AIの応答をログに追加
@@ -97,7 +97,7 @@ async fn main() {
                 content: reply.to_string(),
             });
             // AIの応答を音声に変換して再生
-            match to_audio(&client, &reply, voicevox_chat::audio_processor::Speakers::Metan).await {
+            match to_audio(&client, reply, voicevox_chat::audio_processor::Speakers::Metan).await {
                 Ok(bytes) => {
                     sound.play(bytes);
                 }
