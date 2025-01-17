@@ -25,3 +25,8 @@ OpenAI の API を利用してチャットに応答させています。
 |VOICEVOX_ENGINE_URL|VoiceVox Engine を稼働させている URL。http[s]://{ip}:{port}形式にしてね|
 
 起動すれば OK
+
+## 私的起動メモ
+
+`docker run --rm -d -p 50021:50021 -gpus all voicevox/voicevox_engine`
+`cargo run`
