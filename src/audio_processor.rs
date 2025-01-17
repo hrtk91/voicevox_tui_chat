@@ -1,3 +1,5 @@
+use std::env;
+
 use reqwest::Client;
 use serde::Serialize;
 
@@ -26,7 +28,9 @@ pub async fn to_audio(client: &Client, input: &str, speaker: Speakers) -> Result
         speaker: speaker.into(),
     };
 
-    let res = client.post("http://localhost:50021/audio_query")
+    let origin = env::var("VOICEVOX_ENGINE_URL").unwrap_or("http://localhost:50021".to_string());
+
+    let res = client.post(format!("{}/audio_query", origin))
         .query(&query)
         .send()
         .await
@@ -37,7 +41,7 @@ pub async fn to_audio(client: &Client, input: &str, speaker: Speakers) -> Result
     let query = String::from_utf8(bytes.to_vec()).map_err(|e| format!("Failed to convert bytes to string: {}", e))?;
 
     let res = client.post(
-            format!("http://localhost:50021/synthesis?speaker={}", speaker)
+            format!("{}/synthesis?speaker={}", origin, speaker)
         )
         .body(query)
         .send()

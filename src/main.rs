@@ -1,7 +1,8 @@
 use std::{env, io::{self, Write}};
-use agent_demo::sound;
+use colored::Colorize;
+use voicevox_chat::sound;
 use reqwest::Client;
-use agent_demo::audio_processor::to_audio;
+use voicevox_chat::audio_processor::to_audio;
 use serde::Serialize;
 use serde_json::json;
 
@@ -20,12 +21,16 @@ async fn main() {
     let sound = sound::Sound::new();
     let system_message = Message {
         role: "system".into(),
-        content: "あなたはチャットAIです。ユーザーと楽しく会話をしてください。時には生意気な皮肉やユーモアを交えて会話を盛り上げてください。口語で話すときのように、一文を短く、会話形式での応答を心がけてください。".into(),
+        content: env::var("PROMPT").unwrap_or(r"
+                あなたはチャットAIです。ユーザーと楽しく会話をしてください。
+                口語で話すときのように、一文を短く、会話形式での応答を心がけてください。
+            ".into()
+        ),
     };
     let mut logs: Vec<Message> = vec![];
 
     loop {
-        print!("you>");
+        print!("{}", "you>".blue().bold());
         io::stdout().flush().expect("Failed to flush stdout");
 
         io::stdin().read_line(&mut input).expect("Failed to read line");
@@ -62,14 +67,14 @@ async fn main() {
         let resp = match resp {
             Ok(response) => response,
             Err(e) => {
-                eprintln!("Error sending request: {}", e);
+                eprintln!("{}", format!("Error sending request: {}", e).red());
                 continue;
             }
         };
 
         // レスポンスのステータスコードを確認
         if !resp.status().is_success() {
-            eprintln!("リクエストが失敗しました。ステータスコード: {}", resp.status());
+            eprintln!("{}", format!("リクエストが失敗しました。ステータスコード: {}", resp.status()).red());
             continue;
         }
 
@@ -77,29 +82,31 @@ async fn main() {
         let json: serde_json::Value = match resp.json().await {
             Ok(json) => json,
             Err(e) => {
-                eprintln!("Error parsing response JSON: {}", e);
+                eprintln!("{}", format!("Error parsing response JSON: {}", e).red());
                 continue;
             }
         };
         // AIからの応答を取得して表示
         if let Some(reply) = json["choices"][0]["message"]["content"].as_str() {
-            println!("AI >{}", reply);
+            print!("{}", format!("AI >").green().bold());
+            println!("{}", reply);
+
             // AIの応答をログに追加
             logs.push(Message {
                 role: "assistant".into(),
                 content: reply.to_string(),
             });
             // AIの応答を音声に変換して再生
-            match to_audio(&client, &reply, agent_demo::audio_processor::Speakers::Metan).await {
+            match to_audio(&client, &reply, voicevox_chat::audio_processor::Speakers::Metan).await {
                 Ok(bytes) => {
                     sound.play(bytes);
                 }
                 Err(e) => {
-                    eprintln!("Error processing audio: {}", e);
+                    eprintln!("{}", format!("Error processing audio: {}", e).red());
                 }
             }
         } else {
-            println!("AIからの応答を取得できませんでした。");
+            eprintln!("{}", "AIからの応答を取得できませんでした。".red());
         }
         
         input.clear();
