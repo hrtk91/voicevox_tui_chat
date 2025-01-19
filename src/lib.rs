@@ -1,2 +1,3 @@
+pub mod audio;
+pub mod openai;
 pub mod sound;
-pub mod audio_processor;
