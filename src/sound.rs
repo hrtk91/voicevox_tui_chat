@@ -4,7 +4,7 @@ use std::{
 };
 
 pub struct Player {
-    _stream: rodio::OutputStream,
+    _stream: Arc<Mutex<rodio::OutputStream>>,
     sink: Arc<Mutex<rodio::Sink>>,
 }
 
@@ -22,7 +22,7 @@ impl Player {
         let sink = rodio::Sink::try_new(&stream_handle).expect("Failed to create sink");
 
         Player {
-            _stream,
+            _stream: Arc::new(Mutex::new(_stream)),
             sink: Arc::new(Mutex::new(sink)),
         }
     }
