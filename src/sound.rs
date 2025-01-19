@@ -1,8 +1,7 @@
-use std::io;
+use std::{io, sync::{Arc, Mutex}};
 
 pub struct Player {
-    _stream: rodio::OutputStream,
-    sink: rodio::Sink,
+    sink: Arc<Mutex<rodio::Sink>>,
 }
 
 impl Default for Player {
@@ -18,17 +17,20 @@ impl Player {
 
         let sink = rodio::Sink::try_new(&stream_handle).expect("Failed to create sink");
 
-        Player { _stream, sink }
+        Player { sink: Arc::new(Mutex::new(sink)) }
     }
 
     pub fn play(&self, bytes: Vec<u8>) {
-        self.sink.stop();
-        self.sink.clear();
+        let Ok(sink) = self.sink.lock() else {
+            return;
+        };
+        sink.stop();
+        sink.clear();
 
         let cursor = io::Cursor::new(bytes);
         let source = rodio::Decoder::new(cursor).expect("Failed to create decoder");
 
-        self.sink.append(source);
-        self.sink.play();
+        sink.append(source);
+        sink.play();
     }
 }
