@@ -1,4 +1,7 @@
-use std::{io, sync::{Arc, Mutex}};
+use std::{
+    io,
+    sync::{Arc, Mutex},
+};
 
 pub struct Player {
     sink: Arc<Mutex<rodio::Sink>>,
@@ -17,11 +20,14 @@ impl Player {
 
         let sink = rodio::Sink::try_new(&stream_handle).expect("Failed to create sink");
 
-        Player { sink: Arc::new(Mutex::new(sink)) }
+        Player {
+            sink: Arc::new(Mutex::new(sink)),
+        }
     }
 
     pub fn play(&self, bytes: Vec<u8>) {
         let Ok(sink) = self.sink.lock() else {
+            eprintln!("Failed to lock sink");
             return;
         };
         sink.stop();

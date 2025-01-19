@@ -59,7 +59,7 @@ async fn main() {
         // AIの応答を音声に変換して再生
         let wav = generate_wav(
             client.clone(),
-            reply.as_str(),
+            &reply,
             voicevox_chat::audio::Speakers::Metan,
         )
         .await;
