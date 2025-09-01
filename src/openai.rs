@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use colored::Colorize;
+use futures::StreamExt;
 use serde::Serialize;
 
 pub struct ChatCompletion {
@@ -20,10 +21,12 @@ pub struct Message {
 
 impl ChatCompletion {
     pub fn new(api_key: String, client: Arc<reqwest::Client>) -> Self {
+        let model = std::env::var("OPENAI_MODEL").unwrap_or_else(|_| "gpt-5-nano".to_string());
+
         Self {
             api_key,
             client,
-            model: "gpt-4o-mini".to_string(),
+            model: model.clone(),
             log_size: 30,
             system_messages: vec![],
             chat_messages: vec![],
@@ -68,8 +71,8 @@ impl ChatCompletion {
 
     pub async fn completion(&self) -> Result<String, reqwest::Error> {
         let body = serde_json::json!({
-          "model": "gpt-4o-mini",
-          "messages": self.messages()
+          "model": self.model,
+          "messages": self.messages(),
         });
 
         let resp = self
@@ -85,11 +88,27 @@ impl ChatCompletion {
             Ok(response) => match response.error_for_status() {
                 Ok(valid_response) => valid_response,
                 Err(e) => {
+                    eprintln!(
+                        "{}",
+                        format!(
+                            "Request body: {}",
+                            serde_json::to_string_pretty(&body).unwrap_or_default()
+                        )
+                        .yellow()
+                    );
                     eprintln!("{}", format!("Error in response status: {}", e).red());
                     return Err(e);
                 }
             },
             Err(e) => {
+                eprintln!(
+                    "{}",
+                    format!(
+                        "Request body: {}",
+                        serde_json::to_string_pretty(&body).unwrap_or_default()
+                    )
+                    .yellow()
+                );
                 eprintln!("{}", format!("Error sending request: {}", e).red());
                 return Err(e);
             }
@@ -104,6 +123,121 @@ impl ChatCompletion {
             .expect("content is not a string");
 
         Ok(text.to_string())
+    }
+
+    pub async fn completion_stream<F>(
+        &self,
+        mut callback: F,
+    ) -> Result<String, Box<dyn std::error::Error>>
+    where
+        F: FnMut(&str),
+    {
+        let body = serde_json::json!({
+          "model": self.model,
+          "messages": self.messages(),
+          "stream": true,
+        });
+
+        let resp = self
+            .client
+            .post("https://api.openai.com/v1/chat/completions")
+            .header("Authorization", format!("Bearer {}", self.api_key))
+            .json(&body)
+            .send()
+            .await;
+
+        let resp = match resp {
+            Ok(response) => match response.error_for_status() {
+                Ok(valid_response) => valid_response,
+                Err(e) => {
+                    eprintln!(
+                        "{}",
+                        format!(
+                            "Request body: {}",
+                            serde_json::to_string_pretty(&body).unwrap_or_default()
+                        )
+                        .yellow()
+                    );
+                    eprintln!("{}", format!("Error in response status: {}", e).red());
+                    return Err(Box::new(e));
+                }
+            },
+            Err(e) => {
+                eprintln!(
+                    "{}",
+                    format!(
+                        "Request body: {}",
+                        serde_json::to_string_pretty(&body).unwrap_or_default()
+                    )
+                    .yellow()
+                );
+                eprintln!("{}", format!("Error sending request: {}", e).red());
+                return Err(Box::new(e));
+            }
+        };
+
+        let mut full_content = String::new();
+        let mut bytes_stream = resp.bytes_stream();
+        let mut buffer = String::new();
+
+        while let Some(chunk) = bytes_stream.next().await {
+            match chunk {
+                Ok(bytes) => {
+                    let chunk_str = String::from_utf8_lossy(&bytes);
+                    buffer.push_str(&chunk_str);
+
+                    // Process complete lines
+                    while let Some(newline_pos) = buffer.find('\n') {
+                        let line = buffer.drain(..=newline_pos).collect::<String>();
+                        let line = line.trim();
+
+                        if line.starts_with("data: ") {
+                            let data = &line[6..]; // Remove "data: " prefix
+
+                            if data == "[DONE]" {
+                                break;
+                            }
+
+                            // Parse JSON chunk
+                            match serde_json::from_str::<serde_json::Value>(data) {
+                                Ok(json) => {
+                                    if let Some(choices) =
+                                        json.get("choices").and_then(|c| c.as_array())
+                                    {
+                                        if let Some(choice) = choices.get(0) {
+                                            if let Some(delta) =
+                                                choice.get("delta").and_then(|d| d.as_object())
+                                            {
+                                                if let Some(content) =
+                                                    delta.get("content").and_then(|c| c.as_str())
+                                                {
+                                                    if !content.is_empty() {
+                                                        callback(content);
+                                                        full_content.push_str(content);
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                                Err(e) => {
+                                    eprintln!(
+                                        "{}",
+                                        format!("JSON parse error: {} for data: {}", e, data).red()
+                                    );
+                                }
+                            }
+                        }
+                    }
+                }
+                Err(e) => {
+                    eprintln!("{}", format!("Error reading stream: {}", e).red());
+                    return Err(Box::new(e));
+                }
+            }
+        }
+
+        Ok(full_content)
     }
 }
 
