@@ -1,12 +1,15 @@
 use colored::Colorize;
 use reqwest::Client;
 use std::{
-    env,
     io::{self, Write},
     sync::Arc,
 };
-use voicevox_chat::audio::generate_wav;
-use voicevox_chat::{openai::ChatCompletion, sound};
+use voicevox_chat::{
+    audio::generate_wav,
+    features::terminal::app::run_chat_terminal,
+    openai::ChatCompletion,
+    sound,
+};
 
 async fn run_normal_chat(
     mut chat_completion: ChatCompletion,
@@ -134,39 +137,48 @@ async fn run_streaming_chat(
     }
 }
 
+
 #[tokio::main]
 async fn main() {
     dotenvy::dotenv().ok();
-    let api_key = env::var("OPENAI_API_KEY").expect("OPENAI_API_KEY not set");
-    let use_voicevox = env::var("USE_VOICEVOX")
-        .map(|x| x.to_lowercase())
-        .unwrap_or_else(|_| "false".to_string())
-        .parse::<bool>()
-        .unwrap_or(false);
+    color_eyre::install().expect("Failed to install color_eyre");
 
-    let use_streaming = env::var("USE_STREAMING")
-        .map(|x| x.to_lowercase())
-        .unwrap_or_else(|_| "true".to_string())
-        .parse::<bool>()
-        .unwrap_or(true);
-
-    let client = Arc::new(Client::new());
-    let mut chat_completion = ChatCompletion::new(api_key, client.clone());
-    chat_completion.push_system_message(
-        env::var("PROMPT")
-            .unwrap_or(
-                r"
-            あなたはチャットAIです。ユーザーと楽しく会話をしてください。
-            口語で話すときのように、一文を短く、会話形式での応答を心がけてください。
-            "
-                .into(),
-            )
-            .as_str(),
-    );
-
-    if use_streaming {
-        run_streaming_chat(chat_completion, client, use_voicevox).await;
-    } else {
-        run_normal_chat(chat_completion, client, use_voicevox).await;
+    // チャットターミナルUIを起動
+    if let Err(e) = run_chat_terminal().await {
+        eprintln!("Error running terminal UI: {}", e);
     }
+
+    // 既存のチャット機能は後で統合予定
+    // let api_key = env::var("OPENAI_API_KEY").expect("OPENAI_API_KEY not set");
+    // let use_voicevox = env::var("USE_VOICEVOX")
+    //     .map(|x| x.to_lowercase())
+    //     .unwrap_or_else(|_| "false".to_string())
+    //     .parse::<bool>()
+    //     .unwrap_or(false);
+
+    // let use_streaming = env::var("USE_STREAMING")
+    //     .map(|x| x.to_lowercase())
+    //     .unwrap_or_else(|_| "true".to_string())
+    //     .parse::<bool>()
+    //     .unwrap_or(true);
+
+    // let client = Arc::new(Client::new());
+    // let mut chat_completion = ChatCompletion::new(api_key, client.clone());
+    // chat_completion.push_system_message(
+    //     env::var("PROMPT")
+    //         .unwrap_or(
+    //             r"
+    //         あなたはチャットAIです。ユーザーと楽しく会話をしてください。
+    //         口語で話すときのように、一文を短く、会話形式での応答を心がけてください。
+    //         "
+    //             .into(),
+    //         )
+    //         .as_str(),
+    // );
+
+    // if use_streaming {
+    //     run_streaming_chat(chat_completion, client, use_voicevox).await;
+    // } else {
+    //     run_normal_chat(chat_completion, client, use_voicevox).await;
+    // }
 }

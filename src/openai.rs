@@ -128,7 +128,7 @@ impl ChatCompletion {
     pub async fn completion_stream<F>(
         &self,
         mut callback: F,
-    ) -> Result<String, Box<dyn std::error::Error>>
+    ) -> Result<String, Box<dyn std::error::Error + Send + Sync>>
     where
         F: FnMut(&str),
     {
