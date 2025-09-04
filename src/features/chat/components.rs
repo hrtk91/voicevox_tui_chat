@@ -2,7 +2,7 @@ use ratatui::{
     layout::{Constraint, Direction, Layout},
     style::Style,
     text::{Line, Span},
-    widgets::{Block, Borders, List, ListItem, ListState, Paragraph},
+    widgets::{Block, Borders, List, ListItem, ListState, Paragraph, Wrap},
     Frame,
 };
 
@@ -15,44 +15,76 @@ fn calculate_display_width(text: &str) -> usize {
         .sum()
 }
 
+/// 複数行テキストでのカーソル位置を計算する
+fn calculate_multiline_cursor_position(text: &str, area: ratatui::layout::Rect) -> (u16, u16) {
+    let lines: Vec<&str> = text.split('\n').collect();
+    let current_line = lines.last().map_or("", |line| line);
+    let line_count = lines.len();
+
+    let cursor_x = area.x + 1 + calculate_display_width(current_line) as u16; // ボーダー + 現在行のテキスト幅
+    let cursor_y = area.y + line_count as u16; // ボーダー + 行数
+
+    (cursor_x, cursor_y)
+}
+
+/// 入力テキストに必要な高さを計算する（ボーダー込み）
+pub fn calculate_input_height(text: &str, width: usize) -> usize {
+    let content_width = width.saturating_sub(2); // 左右ボーダー分を除外
+    let mut total_lines = 0;
+
+    for line in text.split('\n') {
+        if line.is_empty() {
+            total_lines += 1;
+        } else {
+            // 長い行は折り返しを考慮
+            let wrapped_lines = wrap_paragraph(line, content_width);
+            total_lines += wrapped_lines.len();
+        }
+    }
+
+    // 最低3行（ボーダー + 内容1行 + ボーダー）、最大10行に制限
+    let result = (total_lines + 2).max(3).min(10);
+    result
+}
+
 /// 単一段落を指定幅で折り返し、複数行に分割する
 fn wrap_paragraph(paragraph: &str, width: usize) -> Vec<String> {
     if width == 0 {
         return vec![paragraph.to_string()];
     }
-    
+
     let mut lines = Vec::new();
     let mut current_line = String::new();
     let mut current_width = 0;
-    
+
     for ch in paragraph.chars() {
         let char_width = if ch.is_ascii() { 1 } else { 2 }; // 日本語文字は幅2として計算
-        
+
         if current_width + char_width > width && !current_line.is_empty() {
             lines.push(current_line.clone());
             current_line.clear();
             current_width = 0;
         }
-        
+
         current_line.push(ch);
         current_width += char_width;
     }
-    
+
     if !current_line.is_empty() {
         lines.push(current_line);
     }
-    
+
     if lines.is_empty() {
         lines.push(String::new());
     }
-    
+
     lines
 }
 
 /// テキストを改行コードで分割し、各段落を指定幅で折り返し、複数行に分割する
 fn wrap_text(text: &str, width: usize) -> Vec<String> {
     let mut result = Vec::new();
-    
+
     // まず改行文字で分割
     for paragraph in text.split('\n') {
         if paragraph.is_empty() {
@@ -64,18 +96,21 @@ fn wrap_text(text: &str, width: usize) -> Vec<String> {
             result.extend(wrapped_lines);
         }
     }
-    
+
     if result.is_empty() {
         result.push(String::new());
     }
-    
+
     result
 }
 
 pub fn render_ui(frame: &mut Frame, state: &AppState) {
+    // 入力内容に応じて動的に入力エリアの高さを計算
+    let input_height = calculate_input_height(&state.current_input, frame.area().width as usize);
+
     let main_layout = Layout::default()
         .direction(Direction::Vertical)
-        .constraints([Constraint::Min(3), Constraint::Length(3)])
+        .constraints([Constraint::Min(3), Constraint::Length(input_height as u16)])
         .split(frame.area());
 
     render_message_list(frame, state, main_layout[0]);
@@ -84,20 +119,20 @@ pub fn render_ui(frame: &mut Frame, state: &AppState) {
 
 fn render_message_list(frame: &mut Frame, state: &AppState, area: ratatui::layout::Rect) {
     let max_prefix_width = state.max_prefix_width();
-    
+
     // ボーダーを考慮した実際の表示幅を計算
     let content_width = area.width.saturating_sub(2) as usize; // 左右のボーダー分
     let text_width = content_width.saturating_sub(max_prefix_width + 2); // プレフィックスとスペース分
-    
+
     let mut all_lines: Vec<ListItem> = Vec::new();
-    
+
     for msg in &state.messages {
         let style = state.theme.get_message_style(&msg.role);
         let prefix = msg.role.formatted_prefix(max_prefix_width);
-        
+
         // メッセージ内容を指定幅で折り返し
         let wrapped_lines = wrap_text(&msg.content, text_width);
-        
+
         for (i, line_content) in wrapped_lines.iter().enumerate() {
             let line_text = if i == 0 {
                 // 最初の行にはプレフィックスを付ける
@@ -106,7 +141,7 @@ fn render_message_list(frame: &mut Frame, state: &AppState, area: ratatui::layou
                 // 2行目以降は適切なインデントを追加
                 format!("{}{}", " ".repeat(max_prefix_width + 2), line_content)
             };
-            
+
             all_lines.push(ListItem::new(Line::from(Span::styled(line_text, style))));
         }
     }
@@ -117,7 +152,7 @@ fn render_message_list(frame: &mut Frame, state: &AppState, area: ratatui::layou
     let messages_list = List::new(all_lines)
         .block(Block::default().borders(Borders::ALL).title("Chat History"))
         .highlight_style(state.theme.get_highlight_style());
-    
+
     if total_lines > 0 {
         // スクロールオフセットを行単位で適用
         let selected_index = state.scroll_offset.min(total_lines.saturating_sub(1));
@@ -129,33 +164,29 @@ fn render_message_list(frame: &mut Frame, state: &AppState, area: ratatui::layou
 
 fn render_input_area(frame: &mut Frame, state: &AppState, area: ratatui::layout::Rect) {
     let (mode_text, help_text) = match state.input_mode {
-        InputMode::Normal => (
-            "-- NORMAL --",
-            "i:Insert q:Quit j/k:Scroll g/G:Top/Bottom",
-        ),
-        InputMode::Insert => (
-            "-- INSERT --",
-            "Esc:Normal Enter:Send",
-        ),
+        InputMode::Normal => ("-- NORMAL --", "i:Insert q:Quit j/k:Scroll g/G:Top/Bottom"),
+        InputMode::Insert => ("-- INSERT --", "Esc:Normal Enter:Send Ctrl+N:NewLine"),
     };
 
-    let border_color = state.theme.get_border_color(state.input_mode == InputMode::Insert);
+    let border_color = state
+        .theme
+        .get_border_color(state.input_mode == InputMode::Insert);
     let title = format!("{} ({})", mode_text, help_text);
 
-    let input_paragraph = Paragraph::new(state.current_input.as_str()).block(
-        Block::default()
-            .borders(Borders::ALL)
-            .border_style(Style::default().fg(border_color))
-            .title(title),
-    );
+    let input_paragraph = Paragraph::new(state.current_input.as_str())
+        .wrap(Wrap { trim: true })
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .border_style(Style::default().fg(border_color))
+                .title(title),
+        );
 
     frame.render_widget(input_paragraph, area);
 
     // Insertモード時にカーソル位置を設定
     if state.input_mode == InputMode::Insert {
-        let text_width = calculate_display_width(&state.current_input);
-        let cursor_x = area.x + 1 + text_width as u16; // ボーダー + テキスト幅
-        let cursor_y = area.y + 1; // ボーダー内の1行目
+        let (cursor_x, cursor_y) = calculate_multiline_cursor_position(&state.current_input, area);
         frame.set_cursor_position((cursor_x, cursor_y));
     }
 }

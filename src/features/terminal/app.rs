@@ -1,13 +1,13 @@
 use ratatui::crossterm::event::{self, Event};
+use reqwest::Client;
 use std::sync::Arc;
 use std::time::Duration;
-use reqwest::Client;
 
 use crate::features::chat::{
-    components::render_ui, 
-    events::{handle_key_event, handle_chat_event, ScrollAction}, 
-    state::{AppState, MessageRole}, 
-    worker::{create_chat_worker, ChatWorkerConfig}
+    components::render_ui,
+    events::{handle_chat_event, handle_key_event, ScrollAction},
+    state::{AppState, MessageRole},
+    worker::{create_chat_worker, ChatWorkerConfig},
 };
 
 pub async fn run_chat_terminal() -> color_eyre::Result<()> {
@@ -19,7 +19,8 @@ pub async fn run_chat_terminal() -> color_eyre::Result<()> {
     let model = std::env::var("OPENAI_MODEL").unwrap_or_else(|_| "gpt-4".to_string());
     let system_prompt = std::env::var("PROMPT").unwrap_or_else(|_| {
         r"あなたはチャットAIです。ユーザーと楽しく会話をしてください。
-口語で話すときのように、一文を短く、会話形式での応答を心がけてください。".to_string()
+口語で話すときのように、一文を短く、会話形式での応答を心がけてください。"
+            .to_string()
     });
 
     // ChatWorkerを起動
@@ -29,7 +30,7 @@ pub async fn run_chat_terminal() -> color_eyre::Result<()> {
         model,
         system_prompt,
     };
-    
+
     let (user_input_tx, mut chat_event_rx) = create_chat_worker(config, client);
 
     // 初期メッセージを追加
@@ -42,20 +43,16 @@ pub async fn run_chat_terminal() -> color_eyre::Result<()> {
         // UI描画とレイアウト情報の取得
         let mut display_width = 80; // デフォルト値
         terminal.draw(|frame| {
-            // UI描画中にレイアウト情報を取得
-            let main_layout = ratatui::layout::Layout::default()
-                .direction(ratatui::layout::Direction::Vertical)
-                .constraints([ratatui::layout::Constraint::Min(3), ratatui::layout::Constraint::Length(3)])
-                .split(frame.area());
-            display_width = main_layout[0].width.saturating_sub(2) as usize;
             render_ui(frame, &app_state);
+            display_width = frame.area().width.saturating_sub(2) as usize;
         })?;
 
         // イベント処理（ノンブロッキング）
         if event::poll(Duration::from_millis(100))? {
             if let Event::Key(key) = event::read()? {
-                let (should_quit, scroll_action) = handle_key_event(key, &mut app_state, Some(&user_input_tx));
-                
+                let (should_quit, scroll_action) =
+                    handle_key_event(key, &mut app_state, Some(&user_input_tx));
+
                 // スクロールアクションの処理
                 if let Some(action) = scroll_action {
                     match action {
@@ -78,7 +75,7 @@ pub async fn run_chat_terminal() -> color_eyre::Result<()> {
                         }
                     }
                 }
-                
+
                 if should_quit || app_state.should_quit {
                     break;
                 }

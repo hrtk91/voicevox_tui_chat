@@ -1,7 +1,7 @@
-use ratatui::crossterm::event::{KeyCode, KeyEvent, KeyEventKind};
+use ratatui::crossterm::event::{KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 use tokio::sync::mpsc;
 
-use super::state::{AppState, InputMode, MessageRole, MessageId, Content, ErrorMessage};
+use super::state::{AppState, Content, ErrorMessage, InputMode, MessageId, MessageRole};
 
 #[derive(Debug, Clone)]
 pub enum ScrollAction {
@@ -23,7 +23,8 @@ pub fn handle_chat_event(app_state: &mut AppState, event: ChatEvent) {
     match event {
         ChatEvent::StreamingStart(_message_id) => {
             // 新しいストリーミングメッセージを開始
-            let _actual_id = app_state.start_streaming_message(MessageRole::Assistant, String::new());
+            let _actual_id =
+                app_state.start_streaming_message(MessageRole::Assistant, String::new());
             // message_idとactual_idの対応を内部で管理する必要がある場合は追加実装
         }
         ChatEvent::StreamingChunk(_message_id, content) => {
@@ -48,7 +49,11 @@ pub fn handle_chat_event(app_state: &mut AppState, event: ChatEvent) {
     }
 }
 
-pub fn handle_key_event(key: KeyEvent, state: &mut AppState, user_input_tx: Option<&mpsc::Sender<String>>) -> (bool, Option<ScrollAction>) {
+pub fn handle_key_event(
+    key: KeyEvent,
+    state: &mut AppState,
+    user_input_tx: Option<&mpsc::Sender<String>>,
+) -> (bool, Option<ScrollAction>) {
     if key.kind != KeyEventKind::Press {
         return (false, None);
     }
@@ -65,18 +70,10 @@ fn handle_normal_mode(key: KeyEvent, state: &mut AppState) -> (bool, Option<Scro
             state.should_quit = true;
             (true, None)
         }
-        KeyCode::Up | KeyCode::Char('k') => {
-            (false, Some(ScrollAction::Up))
-        }
-        KeyCode::Down | KeyCode::Char('j') => {
-            (false, Some(ScrollAction::Down))
-        }
-        KeyCode::Char('g') => {
-            (false, Some(ScrollAction::ToTop))
-        }
-        KeyCode::Char('G') => {
-            (false, Some(ScrollAction::ToBottom))
-        }
+        KeyCode::Up | KeyCode::Char('k') => (false, Some(ScrollAction::Up)),
+        KeyCode::Down | KeyCode::Char('j') => (false, Some(ScrollAction::Down)),
+        KeyCode::Char('g') => (false, Some(ScrollAction::ToTop)),
+        KeyCode::Char('G') => (false, Some(ScrollAction::ToBottom)),
         KeyCode::Char('i') => {
             state.input_mode = InputMode::Insert;
             (false, None)
@@ -85,7 +82,11 @@ fn handle_normal_mode(key: KeyEvent, state: &mut AppState) -> (bool, Option<Scro
     }
 }
 
-fn handle_insert_mode(key: KeyEvent, state: &mut AppState, user_input_tx: Option<&mpsc::Sender<String>>) -> (bool, Option<ScrollAction>) {
+fn handle_insert_mode(
+    key: KeyEvent,
+    state: &mut AppState,
+    user_input_tx: Option<&mpsc::Sender<String>>,
+) -> (bool, Option<ScrollAction>) {
     match key.code {
         KeyCode::Esc => {
             state.input_mode = InputMode::Normal;
@@ -93,12 +94,12 @@ fn handle_insert_mode(key: KeyEvent, state: &mut AppState, user_input_tx: Option
         }
         KeyCode::Enter => {
             if !state.current_input.trim().is_empty() {
-                // ユーザーの入力をメッセージとして追加
+                // Enterならメッセージ送信
                 let _user_id = state.add_message(MessageRole::User, state.current_input.clone());
-                
+
                 // 新しいメッセージ送信時に自動スクロールを再有効化
                 state.enable_auto_scroll();
-                
+
                 // ChatWorkerに入力を送信
                 if let Some(tx) = user_input_tx {
                     let input = state.current_input.clone();
@@ -109,7 +110,7 @@ fn handle_insert_mode(key: KeyEvent, state: &mut AppState, user_input_tx: Option
                         }
                     });
                 }
-                
+
                 state.current_input.clear();
                 // Normalモードに戻る
                 state.input_mode = InputMode::Normal;
@@ -120,8 +121,14 @@ fn handle_insert_mode(key: KeyEvent, state: &mut AppState, user_input_tx: Option
             }
         }
         KeyCode::Char(c) => {
-            state.current_input.push(c);
-            (false, None)
+            // Ctrl+Nで改行挿入
+            if c == 'n' && key.modifiers.contains(KeyModifiers::CONTROL) {
+                state.current_input.push('\n');
+                (false, None)
+            } else {
+                state.current_input.push(c);
+                (false, None)
+            }
         }
         KeyCode::Backspace => {
             state.current_input.pop();
