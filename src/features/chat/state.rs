@@ -195,13 +195,13 @@ impl AppState {
         if width == 0 {
             return 1;
         }
-        
+
         let mut lines = 0;
         let mut current_width = 0;
-        
+
         for ch in paragraph.chars() {
             let char_width = if ch.is_ascii() { 1 } else { 2 };
-            
+
             if current_width + char_width > width && current_width > 0 {
                 lines += 1;
                 current_width = char_width;
@@ -209,18 +209,18 @@ impl AppState {
                 current_width += char_width;
             }
         }
-        
+
         if current_width > 0 {
             lines += 1;
         }
-        
+
         lines.max(1)
     }
 
     /// テキストを改行コードで分割し、折り返し後の総行数を計算する
     fn calculate_wrapped_lines(&self, text: &str, width: usize) -> usize {
         let mut total_lines = 0;
-        
+
         for paragraph in text.split('\n') {
             if paragraph.is_empty() {
                 // 空行も1行としてカウント
@@ -229,7 +229,7 @@ impl AppState {
                 total_lines += self.calculate_paragraph_lines(paragraph, width);
             }
         }
-        
+
         total_lines.max(1)
     }
 
@@ -237,11 +237,10 @@ impl AppState {
     pub fn get_total_lines(&self, display_width: usize) -> usize {
         let max_prefix_width = self.max_prefix_width();
         let text_width = display_width.saturating_sub(max_prefix_width + 2);
-        
+
         self.messages
             .iter()
             .map(|msg| self.calculate_wrapped_lines(&msg.content, text_width))
             .sum()
     }
-
 }

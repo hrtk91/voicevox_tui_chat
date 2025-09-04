@@ -5,10 +5,7 @@ use std::{
     sync::Arc,
 };
 use voicevox_chat::{
-    audio::generate_wav,
-    features::terminal::app::run_chat_terminal,
-    openai::ChatCompletion,
-    sound,
+    audio::generate_wav, features::terminal::app::run_chat_terminal, openai::ChatCompletion, sound,
 };
 
 async fn run_normal_chat(
@@ -136,7 +133,6 @@ async fn run_streaming_chat(
         input.clear();
     }
 }
-
 
 #[tokio::main]
 async fn main() {
