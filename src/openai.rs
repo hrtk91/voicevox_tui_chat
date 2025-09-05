@@ -179,11 +179,43 @@ impl ChatCompletion {
         let mut full_content = String::new();
         let mut bytes_stream = resp.bytes_stream();
         let mut buffer = String::new();
+        let mut byte_buffer = Vec::new(); // UTF-8バイトバッファ
 
         while let Some(chunk) = bytes_stream.next().await {
             match chunk {
                 Ok(bytes) => {
-                    let chunk_str = String::from_utf8_lossy(&bytes);
+                    // バイトバッファに追加
+                    byte_buffer.extend_from_slice(&bytes);
+
+                    // UTF-8文字列として変換を試行
+                    let chunk_str = match std::str::from_utf8(&byte_buffer) {
+                        Ok(valid_str) => {
+                            // 完全な文字列なので、バッファをクリアして使用
+                            let result = valid_str.to_string();
+                            byte_buffer.clear();
+                            result
+                        }
+                        Err(utf8_error) => {
+                            // 不完全なUTF-8バイト列の場合
+                            let valid_up_to = utf8_error.valid_up_to();
+                            if valid_up_to == 0 {
+                                // 先頭から無効な場合、次のチャンクを待つ
+                                continue;
+                            }
+
+                            // 有効な部分を取得
+                            let valid_str = std::str::from_utf8(&byte_buffer[..valid_up_to])
+                                .unwrap()
+                                .to_string();
+
+                            // 不完全な部分を残す
+                            let remaining_bytes = byte_buffer[valid_up_to..].to_vec();
+                            byte_buffer = remaining_bytes;
+
+                            valid_str
+                        }
+                    };
+
                     buffer.push_str(&chunk_str);
 
                     // Process complete lines
