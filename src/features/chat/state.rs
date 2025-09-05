@@ -65,6 +65,7 @@ impl MessageRole {
 pub struct AppState {
     pub messages: Vec<ChatMessage>,
     pub current_input: String,
+    pub cursor_position: usize,
     pub should_quit: bool,
     pub scroll_offset: usize,
     pub input_mode: InputMode,
@@ -77,6 +78,7 @@ impl AppState {
         Self {
             messages: Vec::new(),
             current_input: String::new(),
+            cursor_position: 0,
             should_quit: false,
             scroll_offset: 0,
             input_mode: InputMode::Normal,
@@ -242,5 +244,64 @@ impl AppState {
             .iter()
             .map(|msg| self.calculate_wrapped_lines(&msg.content, text_width))
             .sum()
+    }
+
+    /// 入力内容とカーソル位置をクリア
+    pub fn clear_input(&mut self) {
+        self.current_input.clear();
+        self.cursor_position = 0;
+    }
+
+    /// カーソル位置を左に移動
+    pub fn move_cursor_left(&mut self) {
+        if self.cursor_position > 0 {
+            // 文字境界を考慮してカーソルを移動
+            let mut chars: Vec<(usize, char)> = self.current_input.char_indices().collect();
+            chars.reverse();
+            
+            for (idx, _) in chars {
+                if idx < self.cursor_position {
+                    self.cursor_position = idx;
+                    break;
+                }
+            }
+        }
+    }
+
+    /// カーソル位置を右に移動
+    pub fn move_cursor_right(&mut self) {
+        let chars: Vec<(usize, char)> = self.current_input.char_indices().collect();
+        
+        for (idx, _) in chars {
+            if idx > self.cursor_position {
+                self.cursor_position = idx;
+                return;
+            }
+        }
+        
+        // 最後の文字より後ろに移動する場合
+        self.cursor_position = self.current_input.len();
+    }
+
+    /// カーソル位置に文字を挿入
+    pub fn insert_char_at_cursor(&mut self, ch: char) {
+        self.current_input.insert(self.cursor_position, ch);
+        self.cursor_position += ch.len_utf8();
+    }
+
+    /// カーソル位置の前の文字を削除
+    pub fn backspace_at_cursor(&mut self) {
+        if self.cursor_position > 0 {
+            let chars: Vec<(usize, char)> = self.current_input.char_indices().collect();
+            
+            // カーソル位置より前の文字を見つける
+            for (idx, _ch) in chars.iter().rev() {
+                if *idx < self.cursor_position {
+                    self.current_input.remove(*idx);
+                    self.cursor_position = *idx;
+                    break;
+                }
+            }
+        }
     }
 }

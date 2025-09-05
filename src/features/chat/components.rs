@@ -16,8 +16,15 @@ fn calculate_display_width(text: &str) -> usize {
 }
 
 /// 複数行テキストでのカーソル位置を計算する
-fn calculate_multiline_cursor_position(text: &str, area: ratatui::layout::Rect) -> (u16, u16) {
-    let lines: Vec<&str> = text.split('\n').collect();
+fn calculate_multiline_cursor_position(text: &str, cursor_position: usize, area: ratatui::layout::Rect) -> (u16, u16) {
+    // カーソル位置までのテキストを取得
+    let cursor_text = if cursor_position <= text.len() {
+        &text[..cursor_position]
+    } else {
+        text
+    };
+    
+    let lines: Vec<&str> = cursor_text.split('\n').collect();
     let current_line = lines.last().map_or("", |line| line);
     let line_count = lines.len();
 
@@ -186,7 +193,7 @@ fn render_input_area(frame: &mut Frame, state: &AppState, area: ratatui::layout:
 
     // Insertモード時にカーソル位置を設定
     if state.input_mode == InputMode::Insert {
-        let (cursor_x, cursor_y) = calculate_multiline_cursor_position(&state.current_input, area);
+        let (cursor_x, cursor_y) = calculate_multiline_cursor_position(&state.current_input, state.cursor_position, area);
         frame.set_cursor_position((cursor_x, cursor_y));
     }
 }

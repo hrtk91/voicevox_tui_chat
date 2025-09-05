@@ -111,7 +111,7 @@ fn handle_insert_mode(
                     });
                 }
 
-                state.current_input.clear();
+                state.clear_input();
                 // Normalモードに戻る
                 state.input_mode = InputMode::Normal;
                 // メッセージ送信後は最下部にスクロール
@@ -123,15 +123,23 @@ fn handle_insert_mode(
         KeyCode::Char(c) => {
             // Ctrl+Nで改行挿入
             if c == 'n' && key.modifiers.contains(KeyModifiers::CONTROL) {
-                state.current_input.push('\n');
+                state.insert_char_at_cursor('\n');
                 (false, None)
             } else {
-                state.current_input.push(c);
+                state.insert_char_at_cursor(c);
                 (false, None)
             }
         }
         KeyCode::Backspace => {
-            state.current_input.pop();
+            state.backspace_at_cursor();
+            (false, None)
+        }
+        KeyCode::Left => {
+            state.move_cursor_left();
+            (false, None)
+        }
+        KeyCode::Right => {
+            state.move_cursor_right();
             (false, None)
         }
         _ => (false, None),
