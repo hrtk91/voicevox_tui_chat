@@ -21,7 +21,7 @@ The application requires a `.env` file in the root directory with the following 
 
 - `OPENAI_API_KEY` - OpenAI API key for chat completions
 - `VOICEVOX_ENGINE_URL` - URL to running VOICEVOX Engine (default: http://localhost:50021)
-- `OPENAI_MODEL` - OpenAI model to use (default: gpt-4)
+- `OPENAI_MODEL` - OpenAI model to use (options: gpt-5, gpt-5-mini, gpt-5-nano; default: gpt-5-nano)
 - `SYSTEM_PROMPT` - System prompt for the AI (optional)
 
 VOICEVOX Engine must be running separately. The README suggests using Docker:
