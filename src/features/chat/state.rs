@@ -1,6 +1,7 @@
 use uuid::Uuid;
 
 use super::theme::{ChatTheme, ThemePreset};
+use std::collections::HashMap;
 
 pub type MessageId = String;
 pub type Content = String;
@@ -11,6 +12,7 @@ pub enum InputMode {
     Normal,
     Insert,
     ModelSelect,
+    Settings,
 }
 
 #[derive(Debug, Clone)]
@@ -75,6 +77,8 @@ pub struct AppState {
     pub current_model: String,
     pub available_models: Vec<String>,
     pub model_select_index: usize,
+    pub current_settings: HashMap<String, String>,
+    pub settings_scroll_index: usize,
 }
 
 impl Default for AppState {
@@ -101,6 +105,8 @@ impl AppState {
                 "gpt-5-nano".to_string(),
             ],
             model_select_index: 2, // Default to gpt-5-nano
+            current_settings: HashMap::new(),
+            settings_scroll_index: 0,
         }
     }
 
@@ -126,6 +132,22 @@ impl AppState {
 
     pub fn get_selected_model(&self) -> Option<&String> {
         self.available_models.get(self.model_select_index)
+    }
+
+    pub fn update_settings(&mut self, settings: HashMap<String, String>) {
+        self.current_settings = settings;
+    }
+
+    pub fn move_settings_selection_up(&mut self) {
+        if self.settings_scroll_index > 0 {
+            self.settings_scroll_index -= 1;
+        }
+    }
+
+    pub fn move_settings_selection_down(&mut self, max_items: usize) {
+        if self.settings_scroll_index < max_items.saturating_sub(1) {
+            self.settings_scroll_index += 1;
+        }
     }
 
     pub fn add_message(&mut self, role: MessageRole, content: Content) -> MessageId {

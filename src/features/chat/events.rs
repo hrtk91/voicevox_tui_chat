@@ -67,6 +67,7 @@ pub fn handle_key_event(
         InputMode::Normal => handle_normal_mode(key, state),
         InputMode::Insert => handle_insert_mode(key, state, user_input_tx),
         InputMode::ModelSelect => handle_model_select_mode(key, state),
+        InputMode::Settings => handle_settings_mode(key, state),
     }
 }
 
@@ -88,6 +89,10 @@ fn handle_normal_mode(key: KeyEvent, state: &mut AppState) -> (bool, Option<Scro
             state.input_mode = InputMode::ModelSelect;
             (false, None)
         }
+        KeyCode::Char('s') => {
+            state.input_mode = InputMode::Settings;
+            (false, None)
+        }
         _ => (false, None),
     }
 }
@@ -107,6 +112,11 @@ fn handle_insert_mode(
                 // Check for slash commands
                 if state.current_input.trim() == "/model" {
                     state.input_mode = InputMode::ModelSelect;
+                    state.clear_input();
+                    return (false, None);
+                }
+                if state.current_input.trim() == "/settings" {
+                    state.input_mode = InputMode::Settings;
                     state.clear_input();
                     return (false, None);
                 }
@@ -187,6 +197,26 @@ fn handle_model_select_mode(key: KeyEvent, state: &mut AppState) -> (bool, Optio
                 state.input_mode = InputMode::Normal;
                 // TODO: Send model change event to worker
             }
+            (false, None)
+        }
+        _ => (false, None),
+    }
+}
+
+fn handle_settings_mode(key: KeyEvent, state: &mut AppState) -> (bool, Option<ScrollAction>) {
+    let max_items = state.current_settings.len();
+    
+    match key.code {
+        KeyCode::Esc | KeyCode::Char('q') => {
+            state.input_mode = InputMode::Normal;
+            (false, None)
+        }
+        KeyCode::Up | KeyCode::Char('k') => {
+            state.move_settings_selection_up();
+            (false, None)
+        }
+        KeyCode::Down | KeyCode::Char('j') => {
+            state.move_settings_selection_down(max_items);
             (false, None)
         }
         _ => (false, None),
