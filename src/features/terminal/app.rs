@@ -30,6 +30,9 @@ pub async fn run_chat_terminal() -> color_eyre::Result<()> {
             .to_string()
     });
 
+    // AppStateにモデル情報を設定
+    app_state.set_current_model(model.clone());
+
     // 使用したモデルを設定に保存
     config.set_last_used_model(model.clone());
     config.save();

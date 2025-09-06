@@ -9,7 +9,6 @@ async fn main() {
     // Setup logging to file
     let log_file = OpenOptions::new()
         .create(true)
-        .write(true)
         .append(true)
         .open("debug.log")
         .expect("Failed to create log file");

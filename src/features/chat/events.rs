@@ -17,6 +17,7 @@ pub enum ChatEvent {
     StreamingChunk(MessageId, Content),
     StreamingComplete(MessageId),
     Error(ErrorMessage),
+    ModelChanged(String),
 }
 
 pub fn handle_chat_event(app_state: &mut AppState, event: ChatEvent) {
@@ -46,6 +47,10 @@ pub fn handle_chat_event(app_state: &mut AppState, event: ChatEvent) {
         ChatEvent::Error(error_msg) => {
             app_state.add_message(MessageRole::System, format!("Error: {}", error_msg));
         }
+        ChatEvent::ModelChanged(model) => {
+            app_state.set_current_model(model.clone());
+            app_state.add_message(MessageRole::System, format!("Model changed to: {}", model));
+        }
     }
 }
 
@@ -61,6 +66,7 @@ pub fn handle_key_event(
     match state.input_mode {
         InputMode::Normal => handle_normal_mode(key, state),
         InputMode::Insert => handle_insert_mode(key, state, user_input_tx),
+        InputMode::ModelSelect => handle_model_select_mode(key, state),
     }
 }
 
@@ -76,6 +82,10 @@ fn handle_normal_mode(key: KeyEvent, state: &mut AppState) -> (bool, Option<Scro
         KeyCode::Char('G') => (false, Some(ScrollAction::ToBottom)),
         KeyCode::Char('i') => {
             state.input_mode = InputMode::Insert;
+            (false, None)
+        }
+        KeyCode::Char('m') => {
+            state.input_mode = InputMode::ModelSelect;
             (false, None)
         }
         _ => (false, None),
@@ -94,6 +104,13 @@ fn handle_insert_mode(
         }
         KeyCode::Enter => {
             if !state.current_input.trim().is_empty() {
+                // Check for slash commands
+                if state.current_input.trim() == "/model" {
+                    state.input_mode = InputMode::ModelSelect;
+                    state.clear_input();
+                    return (false, None);
+                }
+
                 // Enterならメッセージ送信
                 let _user_id = state.add_message(MessageRole::User, state.current_input.clone());
 
@@ -140,6 +157,36 @@ fn handle_insert_mode(
         }
         KeyCode::Right => {
             state.move_cursor_right();
+            (false, None)
+        }
+        _ => (false, None),
+    }
+}
+
+fn handle_model_select_mode(key: KeyEvent, state: &mut AppState) -> (bool, Option<ScrollAction>) {
+    match key.code {
+        KeyCode::Esc => {
+            state.input_mode = InputMode::Normal;
+            (false, None)
+        }
+        KeyCode::Up | KeyCode::Char('k') => {
+            state.move_model_selection_up();
+            (false, None)
+        }
+        KeyCode::Down | KeyCode::Char('j') => {
+            state.move_model_selection_down();
+            (false, None)
+        }
+        KeyCode::Enter => {
+            if let Some(selected_model) = state.get_selected_model().cloned() {
+                state.set_current_model(selected_model.clone());
+                state.add_message(
+                    MessageRole::System,
+                    format!("Model changed to: {}", selected_model),
+                );
+                state.input_mode = InputMode::Normal;
+                // TODO: Send model change event to worker
+            }
             (false, None)
         }
         _ => (false, None),

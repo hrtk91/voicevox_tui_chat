@@ -6,10 +6,11 @@ pub type MessageId = String;
 pub type Content = String;
 pub type ErrorMessage = String;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum InputMode {
     Normal,
     Insert,
+    ModelSelect,
 }
 
 #[derive(Debug, Clone)]
@@ -71,6 +72,9 @@ pub struct AppState {
     pub input_mode: InputMode,
     pub theme: ChatTheme,
     pub auto_scroll_enabled: bool,
+    pub current_model: String,
+    pub available_models: Vec<String>,
+    pub model_select_index: usize,
 }
 
 impl Default for AppState {
@@ -90,7 +94,38 @@ impl AppState {
             input_mode: InputMode::Normal,
             theme: ChatTheme::from_preset(ThemePreset::Default),
             auto_scroll_enabled: true,
+            current_model: "gpt-5-nano".to_string(),
+            available_models: vec![
+                "gpt-5".to_string(),
+                "gpt-5-mini".to_string(),
+                "gpt-5-nano".to_string(),
+            ],
+            model_select_index: 2, // Default to gpt-5-nano
         }
+    }
+
+    pub fn set_current_model(&mut self, model: String) {
+        self.current_model = model.clone();
+        // Update selected index to match current model
+        if let Some(index) = self.available_models.iter().position(|m| m == &model) {
+            self.model_select_index = index;
+        }
+    }
+
+    pub fn move_model_selection_up(&mut self) {
+        if self.model_select_index > 0 {
+            self.model_select_index -= 1;
+        }
+    }
+
+    pub fn move_model_selection_down(&mut self) {
+        if self.model_select_index < self.available_models.len().saturating_sub(1) {
+            self.model_select_index += 1;
+        }
+    }
+
+    pub fn get_selected_model(&self) -> Option<&String> {
+        self.available_models.get(self.model_select_index)
     }
 
     pub fn add_message(&mut self, role: MessageRole, content: Content) -> MessageId {

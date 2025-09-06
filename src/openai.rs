@@ -223,9 +223,7 @@ impl ChatCompletion {
                         let line = buffer.drain(..=newline_pos).collect::<String>();
                         let line = line.trim();
 
-                        if line.starts_with("data: ") {
-                            let data = &line[6..]; // Remove "data: " prefix
-
+                        if let Some(data) = line.strip_prefix("data: ") {
                             if data == "[DONE]" {
                                 break;
                             }

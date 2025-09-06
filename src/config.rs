@@ -3,17 +3,9 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct AppConfig {
     pub last_used_model: Option<String>,
-}
-
-impl Default for AppConfig {
-    fn default() -> Self {
-        Self {
-            last_used_model: None,
-        }
-    }
 }
 
 impl AppConfig {
@@ -22,17 +14,15 @@ impl AppConfig {
             Some(config_path) => {
                 if config_path.exists() {
                     match fs::read_to_string(&config_path) {
-                        Ok(content) => {
-                            match serde_json::from_str::<AppConfig>(&content) {
-                                Ok(config) => {
-                                    log::debug!("Loaded config from: {:?}", config_path);
-                                    return config;
-                                }
-                                Err(e) => {
-                                    log::warn!("Failed to parse config file: {}", e);
-                                }
+                        Ok(content) => match serde_json::from_str::<AppConfig>(&content) {
+                            Ok(config) => {
+                                log::debug!("Loaded config from: {:?}", config_path);
+                                return config;
                             }
-                        }
+                            Err(e) => {
+                                log::warn!("Failed to parse config file: {}", e);
+                            }
+                        },
                         Err(e) => {
                             log::warn!("Failed to read config file: {}", e);
                         }
@@ -43,7 +33,7 @@ impl AppConfig {
                 log::warn!("Could not determine config directory");
             }
         }
-        
+
         log::debug!("Using default config");
         Self::default()
     }
@@ -91,10 +81,7 @@ impl AppConfig {
     }
 
     fn config_file_path() -> Option<PathBuf> {
-        if let Some(project_dirs) = ProjectDirs::from("com", "voicevox", "voicevox_chat") {
-            Some(project_dirs.config_dir().join("config.json"))
-        } else {
-            None
-        }
+        ProjectDirs::from("com", "voicevox", "voicevox_chat")
+            .map(|project_dirs| project_dirs.config_dir().join("config.json"))
     }
 }
