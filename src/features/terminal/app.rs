@@ -19,7 +19,7 @@ pub async fn run_chat_terminal() -> color_eyre::Result<()> {
     // 環境変数から設定を読み取り
     let api_key = std::env::var("OPENAI_API_KEY").expect("OPENAI_API_KEY not set");
     let model = std::env::var("OPENAI_MODEL").unwrap_or_else(|_| "gpt-4".to_string());
-    let system_prompt = std::env::var("PROMPT").unwrap_or_else(|_| {
+    let system_prompt = std::env::var("SYSTEM_PROMPT").unwrap_or_else(|_| {
         r"あなたはチャットAIです。ユーザーと楽しく会話をしてください。
 口語で話すときのように、一文を短く、会話形式での応答を心がけてください。"
             .to_string()
