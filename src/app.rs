@@ -24,7 +24,7 @@ pub async fn run_chat_terminal() -> color_eyre::Result<()> {
     let api_key = std::env::var("OPENAI_API_KEY").expect("OPENAI_API_KEY not set");
     let env_model = std::env::var("OPENAI_MODEL").ok();
     let model = config.get_model(env_model.as_deref(), "gpt-5-nano");
-    let system_prompt = std::env::var("SYSTEM_PROMPT").unwrap_or_else(|_| {
+    let system_prompt = std::env::var("PROMPT").unwrap_or_else(|_| {
         r"あなたはチャットAIです。ユーザーと楽しく会話をしてください。
 口語で話すときのように、一文を短く、会話形式での応答を心がけてください。"
             .to_string()
@@ -32,7 +32,7 @@ pub async fn run_chat_terminal() -> color_eyre::Result<()> {
 
     // AppStateにモデル情報を設定
     app_state.set_current_model(model.clone());
-    
+
     // 設定情報をAppStateに初期化
     let settings = config.get_all_settings();
     app_state.update_settings(settings);

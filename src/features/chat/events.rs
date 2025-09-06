@@ -205,7 +205,7 @@ fn handle_model_select_mode(key: KeyEvent, state: &mut AppState) -> (bool, Optio
 
 fn handle_settings_mode(key: KeyEvent, state: &mut AppState) -> (bool, Option<ScrollAction>) {
     let max_items = state.current_settings.len();
-    
+
     match key.code {
         KeyCode::Esc | KeyCode::Char('q') => {
             state.input_mode = InputMode::Normal;

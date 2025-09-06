@@ -1,6 +1,6 @@
 use env_logger::{Builder, Target};
 use std::fs::OpenOptions;
-use voicevox_chat::features::terminal::app::run_chat_terminal;
+use voicevox_chat::app::run_chat_terminal;
 
 #[tokio::main]
 async fn main() {
