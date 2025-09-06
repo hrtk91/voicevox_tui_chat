@@ -23,6 +23,7 @@ OpenAI の API を利用してチャットに応答させています。
 |---|---|
 |OPENAI_API_KEY|OpenAI の API Key|
 |VOICEVOX_ENGINE_URL|VoiceVox Engine を稼働させている URL。http[s]://{ip}:{port}形式にしてね|
+|PROMPT|AI に与えるプロンプト|
 
 起動すれば OK
 

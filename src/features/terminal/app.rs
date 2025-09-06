@@ -9,6 +9,8 @@ use crate::features::chat::{
     state::{AppState, MessageRole},
     worker::{create_chat_worker, ChatWorkerConfig},
 };
+use crate::features::voice;
+use crate::sound;
 
 pub async fn run_chat_terminal() -> color_eyre::Result<()> {
     let mut terminal = ratatui::init();
@@ -31,7 +33,10 @@ pub async fn run_chat_terminal() -> color_eyre::Result<()> {
         system_prompt,
     };
 
-    let (user_input_tx, mut chat_event_rx) = create_chat_worker(config, client);
+    let (user_input_tx, mut chat_event_rx) = create_chat_worker(config, client.clone());
+
+    // Audio loopを開始
+    let audio_tx = sound::start_audio_loop();
 
     // 初期メッセージを追加
     let _system_id = app_state.add_message(
@@ -84,6 +89,7 @@ pub async fn run_chat_terminal() -> color_eyre::Result<()> {
 
         // ChatEventの処理（ノンブロッキング）
         while let Ok(chat_event) = chat_event_rx.try_recv() {
+            voice::handle_voice_event(&chat_event, &app_state, client.clone(), audio_tx.clone());
             handle_chat_event(&mut app_state, chat_event);
             // ストリーミング中は自動的に最下部にスクロール
             app_state.auto_scroll_to_bottom(display_width);
