@@ -66,8 +66,15 @@ pub fn handle_key_event(
     match state.input_mode {
         InputMode::Normal => handle_normal_mode(key, state),
         InputMode::Insert => handle_insert_mode(key, state, user_input_tx),
-        InputMode::ModelSelect => handle_model_select_mode(key, state),
-        InputMode::Settings => handle_settings_mode(key, state),
+        InputMode::ModelSelect => {
+            let should_quit =
+                crate::features::model_select::events::handle_model_select_mode(key, state);
+            (should_quit, None)
+        }
+        InputMode::Settings => {
+            let should_quit = crate::features::settings::events::handle_settings_mode(key, state);
+            (should_quit, None)
+        }
     }
 }
 
@@ -167,56 +174,6 @@ fn handle_insert_mode(
         }
         KeyCode::Right => {
             state.move_cursor_right();
-            (false, None)
-        }
-        _ => (false, None),
-    }
-}
-
-fn handle_model_select_mode(key: KeyEvent, state: &mut AppState) -> (bool, Option<ScrollAction>) {
-    match key.code {
-        KeyCode::Esc => {
-            state.input_mode = InputMode::Normal;
-            (false, None)
-        }
-        KeyCode::Up | KeyCode::Char('k') => {
-            state.move_model_selection_up();
-            (false, None)
-        }
-        KeyCode::Down | KeyCode::Char('j') => {
-            state.move_model_selection_down();
-            (false, None)
-        }
-        KeyCode::Enter => {
-            if let Some(selected_model) = state.get_selected_model().cloned() {
-                state.set_current_model(selected_model.clone());
-                state.add_message(
-                    MessageRole::System,
-                    format!("Model changed to: {}", selected_model),
-                );
-                state.input_mode = InputMode::Normal;
-                // TODO: Send model change event to worker
-            }
-            (false, None)
-        }
-        _ => (false, None),
-    }
-}
-
-fn handle_settings_mode(key: KeyEvent, state: &mut AppState) -> (bool, Option<ScrollAction>) {
-    let max_items = state.current_settings.len();
-
-    match key.code {
-        KeyCode::Esc | KeyCode::Char('q') => {
-            state.input_mode = InputMode::Normal;
-            (false, None)
-        }
-        KeyCode::Up | KeyCode::Char('k') => {
-            state.move_settings_selection_up();
-            (false, None)
-        }
-        KeyCode::Down | KeyCode::Char('j') => {
-            state.move_settings_selection_down(max_items);
             (false, None)
         }
         _ => (false, None),
