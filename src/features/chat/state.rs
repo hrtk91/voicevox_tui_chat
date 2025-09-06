@@ -40,7 +40,7 @@ impl ChatMessage {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum MessageRole {
     User,
     Assistant,
@@ -71,6 +71,12 @@ pub struct AppState {
     pub input_mode: InputMode,
     pub theme: ChatTheme,
     pub auto_scroll_enabled: bool,
+}
+
+impl Default for AppState {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl AppState {
@@ -258,7 +264,7 @@ impl AppState {
             // 文字境界を考慮してカーソルを移動
             let mut chars: Vec<(usize, char)> = self.current_input.char_indices().collect();
             chars.reverse();
-            
+
             for (idx, _) in chars {
                 if idx < self.cursor_position {
                     self.cursor_position = idx;
@@ -271,14 +277,14 @@ impl AppState {
     /// カーソル位置を右に移動
     pub fn move_cursor_right(&mut self) {
         let chars: Vec<(usize, char)> = self.current_input.char_indices().collect();
-        
+
         for (idx, _) in chars {
             if idx > self.cursor_position {
                 self.cursor_position = idx;
                 return;
             }
         }
-        
+
         // 最後の文字より後ろに移動する場合
         self.cursor_position = self.current_input.len();
     }
@@ -293,7 +299,7 @@ impl AppState {
     pub fn backspace_at_cursor(&mut self) {
         if self.cursor_position > 0 {
             let chars: Vec<(usize, char)> = self.current_input.char_indices().collect();
-            
+
             // カーソル位置より前の文字を見つける
             for (idx, _ch) in chars.iter().rev() {
                 if *idx < self.cursor_position {

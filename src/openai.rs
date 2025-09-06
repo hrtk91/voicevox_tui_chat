@@ -236,7 +236,7 @@ impl ChatCompletion {
                                     if let Some(choices) =
                                         json.get("choices").and_then(|c| c.as_array())
                                     {
-                                        if let Some(choice) = choices.get(0) {
+                                        if let Some(choice) = choices.first() {
                                             if let Some(delta) =
                                                 choice.get("delta").and_then(|d| d.as_object())
                                             {

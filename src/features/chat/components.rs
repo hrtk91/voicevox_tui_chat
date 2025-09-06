@@ -16,14 +16,18 @@ fn calculate_display_width(text: &str) -> usize {
 }
 
 /// 複数行テキストでのカーソル位置を計算する
-fn calculate_multiline_cursor_position(text: &str, cursor_position: usize, area: ratatui::layout::Rect) -> (u16, u16) {
+fn calculate_multiline_cursor_position(
+    text: &str,
+    cursor_position: usize,
+    area: ratatui::layout::Rect,
+) -> (u16, u16) {
     // カーソル位置までのテキストを取得
     let cursor_text = if cursor_position <= text.len() {
         &text[..cursor_position]
     } else {
         text
     };
-    
+
     let lines: Vec<&str> = cursor_text.split('\n').collect();
     let current_line = lines.last().map_or("", |line| line);
     let line_count = lines.len();
@@ -50,8 +54,8 @@ pub fn calculate_input_height(text: &str, width: usize) -> usize {
     }
 
     // 最低3行（ボーダー + 内容1行 + ボーダー）、最大10行に制限
-    let result = (total_lines + 2).max(3).min(10);
-    result
+
+    (total_lines + 2).max(3).min(10)
 }
 
 /// 単一段落を指定幅で折り返し、複数行に分割する
@@ -193,7 +197,8 @@ fn render_input_area(frame: &mut Frame, state: &AppState, area: ratatui::layout:
 
     // Insertモード時にカーソル位置を設定
     if state.input_mode == InputMode::Insert {
-        let (cursor_x, cursor_y) = calculate_multiline_cursor_position(&state.current_input, state.cursor_position, area);
+        let (cursor_x, cursor_y) =
+            calculate_multiline_cursor_position(&state.current_input, state.cursor_position, area);
         frame.set_cursor_position((cursor_x, cursor_y));
     }
 }
