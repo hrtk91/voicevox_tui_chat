@@ -3,6 +3,7 @@ use reqwest::Client;
 use std::sync::Arc;
 use std::time::Duration;
 
+use crate::config::AppConfig;
 use crate::features::chat::{
     components::render_ui,
     events::{handle_chat_event, handle_key_event, ScrollAction},
@@ -16,24 +17,32 @@ pub async fn run_chat_terminal() -> color_eyre::Result<()> {
     let mut terminal = ratatui::init();
     let mut app_state = AppState::new();
 
+    // 設定を読み込み
+    let mut config = AppConfig::load();
+
     // 環境変数から設定を読み取り
     let api_key = std::env::var("OPENAI_API_KEY").expect("OPENAI_API_KEY not set");
-    let model = std::env::var("OPENAI_MODEL").unwrap_or_else(|_| "gpt-4".to_string());
+    let env_model = std::env::var("OPENAI_MODEL").ok();
+    let model = config.get_model(env_model.as_deref(), "gpt-5-nano");
     let system_prompt = std::env::var("SYSTEM_PROMPT").unwrap_or_else(|_| {
         r"あなたはチャットAIです。ユーザーと楽しく会話をしてください。
 口語で話すときのように、一文を短く、会話形式での応答を心がけてください。"
             .to_string()
     });
 
+    // 使用したモデルを設定に保存
+    config.set_last_used_model(model.clone());
+    config.save();
+
     // ChatWorkerを起動
     let client = Arc::new(Client::new());
-    let config = ChatWorkerConfig {
+    let worker_config = ChatWorkerConfig {
         api_key,
         model,
         system_prompt,
     };
 
-    let (user_input_tx, mut chat_event_rx) = create_chat_worker(config, client.clone());
+    let (user_input_tx, mut chat_event_rx) = create_chat_worker(worker_config, client.clone());
 
     // Audio loopを開始
     let audio_tx = sound::start_audio_loop();
